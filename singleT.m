@@ -2,24 +2,10 @@ clc
 close all;
 clear all;
 
-%%
-%Моделируем сигнал
+% В этом скрипте Т не меняется
 
-T = 1;
-K = round(T*50);%количество отсчетов
-
-DEV_A = zeros(50, 10);
-DEV_B = zeros(50, 10);
-DEV_PHI = zeros(50, 10);
-DEV_T = zeros(50, 10);
-
-for k = 1 : K
-    %B(k) = 0.2*sin(2*pi*k*0.002);
-    %A(k) = exp(-((k-400)^2)/100^2)+0.6*exp(-((k-750)^2)/100^2);
-    %s(k) = B(k) + A(k)*cos(2*pi*k*0.05 + ph_init) + n(k);
-    kk(k) = k;
-end
-
+T = 5;
+K = round(T*100);%количество отсчетов
 
 sigmaPsi=0.05; %реальные погрешности (ошибка модели)
 sigmaEtaModel=0.1; %ошибка измерений прибора
@@ -30,12 +16,6 @@ kk = zeros(1, K); %номера отсчетов для визуализации графиков
 Rpr = [0.073 0 0 0; 0 0.021 0 0; 0 0 0.006 0; 0 0 0 0.0001]; %подобрать дисперсию для последнего пар-ра
 %ковариационная матрица шума наблюдения
 Rn =  0.01;
-
-for n = 1:10
-
-
-%figure(1), plot(s);
-%plot(B);
 
  %B = zeros(1, K); %Фон
  A = zeros(1, K); %Амплитуда
@@ -52,7 +32,7 @@ for n = 1:10
 for i = 1:50 % 50 экспериментов (т.к. сигнал стохастический)
     
     for x = 1:K
-        A(x) = exp((-(x-45)^2)/150);
+        A(x) = exp((-(x-500)^2)/50000);
         y(x) = A(x)*cos(2*3.14*(1/T)*x)+normrnd(0,sigmaPsi); %T - кол-во отчётов на период
         z(x)=y(x)+normrnd(0,sigmaEtaModel); 
     end
@@ -82,7 +62,7 @@ for i = 1:50 % 50 экспериментов (т.к. сигнал стохастический)
     Thetta = [B_est(1); A_est(1); ph_init_est(1); T_est(1) ]; %начальное значение вектора параметров
 
     for k = 1 : K
-        H = [1; cos(2*pi*k*(1/Thetta(4))+Thetta(3)); -Thetta(2)*sin(2*pi*k*(1/Thetta(4))+Thetta(3)); (2*pi*Thetta(2)*k*sin(Thetta(3) + (2*pi*k)/Thetta(4)))/Thetta(4)^2]'; %вектор из производных по параметрам (см. модель в стр. 16)
+        H = [1; cos(2*pi*k*(1/Thetta(4))+Thetta(3)); -Thetta(2)*sin(2*pi*k*(1/Thetta(4))+Thetta(3)); (2*pi*Thetta(2)*k*sin(2*pi*k*(Thetta(3) + 1/Thetta(4)))) / Thetta(4)^2]'; %вектор из производных по параметрам (см. модель в стр. 16)
         P = Rpr*H'*inv(H*Rpr*H'+Rn);                                                        
         Thetta = Thetta + P * (z(k) - (Thetta(1)+Thetta(2)*cos(2*pi*k*(1/Thetta(4))+Thetta(3))) ); %d/d(thetta4)) (Thetta(1)+Thetta(2)*cos(2*pi*k*(1/Thetta(4))+Thetta(3))
         Thetta(2) = abs(Thetta(2));
@@ -134,21 +114,3 @@ devA_t = devA';
 devB_t = devB';
 devPhi_t = devPhi';
 devT_t = devT';
-
-for f = 1:50
-    DEV_A(f, n) = devA_t(f, :);
-    DEV_B(f, n) = devB_t(f, :);
-    DEV_PHI(f, n) = devPhi_t(f, :);
-    DEV_T(f, n) = devT_t(f, :);
-end;
-
-T = T + 2;
-
-end;
-%boxplot(devB, T);
-
-%plot(B, k);
-figure (2),
-%subplot(3,1,1),plot(kk,B_est_sm,kk, z ),title('Фон');
-%subplot(3,1,2),plot(kk,A_est_sm, kk,z),title('Амплитуда');
-%subplot(3,1,3),plot(kk,ph_init_est),title('Начальная фаза');
