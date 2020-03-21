@@ -7,7 +7,7 @@ clear all;
 K = 500; %количество отсчетов
 kk = zeros(1, K); %номера отсчетов для визуализации графиков 
 B = zeros(1, K); %Фон
-A = zeros(1, K); %Амплитуда
+A = zeros(1, K); %Амплитудаa
 ph_init = zeros(1,K); %начальная фаза
 for k = 1 : K
     %B(k) = 0.2*sin(2*pi*k*0.002);
@@ -17,6 +17,7 @@ for k = 1 : K
 end
 %figure(1), plot(s);
 %plot(B);
+
 
 %реальный сигнал
 file_signal = fopen('signal.txt', 'r');
@@ -38,7 +39,23 @@ signal_if = ifft(signal_f);
 signal_if2 = ifft(signal_f2);
 signal_sub2 = signal_if; % - signal_if2;
 
-
+ devA = zeros(1,50);
+ devB = zeros(1,50);
+ devPhi = zeros(1,50);
+ devT = zeros(1,50);
+ 
+ 
+ for i = 1:50
+ 
+ deviationA = zeros(1,K);
+    deviationB = zeros(1,K);
+    deviationPhi = zeros(1,K);
+    deviationT = zeros(1,K);
+    
+    dev_sumA = 0;
+    dev_sumB = 0;
+    dev_sumPhi = 0;
+    dev_sumT = 0;
 
 %%
 % начинаем фильтровать параметры сигнала
@@ -71,6 +88,37 @@ A_est_sm = smooth(A_est,15);
 B_est_sm = smooth(B_est,25);
 
 signal_sub3 = signal_sub2 - B_est;
+
+for j = 1:K
+      deviationA(j) = ((A_est_sm(j) - A(j))^2);
+    end
+
+    dev_sumA = sum(deviationA)/K;
+    devA(i) = dev_sumA;
+
+    for j = 1:K
+      deviationB(j) = (B_est_sm(j)^2);
+    end
+
+    dev_sumB = sum(deviationB)/K;
+    devB(i) = dev_sumB;
+
+    %for j = 1:K
+      %deviationPhi(j) = ((ph_init_est(j) - (2*3.14*(1/T)*x)^2));
+    %end
+
+    %dev_sumPhi = sum(deviationPhi)/K;
+    devPhi(i) = std(ph_init_est);
+    
+    end;
+    
+    
+devA_t = devA';
+devB_t = devB';
+devPhi_t = devPhi';
+devT_t = devT';
+
+
 
 %plot(B, k);
 figure (2),

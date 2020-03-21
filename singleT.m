@@ -4,20 +4,28 @@ clear all;
 
 % В этом скрипте Т не меняется
 
-T = 5;
-K = round(T*100);%количество отсчетов
+T = 1.8; % T = 5 ( в начале )
 
-sigmaPsi=0.05; %реальные погрешности (ошибка модели)
-sigmaEtaModel=0.1; %ошибка измерений прибора
-sigmaEtaFilter = 0.8;
+K = round(T*50);%количество отсчетов
 kk = zeros(1, K); %номера отсчетов для визуализации графиков 
 
-%ковариационная матрица шума системы (параметров)
-Rpr = [0.073 0 0 0; 0 0.021 0 0; 0 0 0.006 0; 0 0 0 0.0001]; %подобрать дисперсию для последнего пар-ра
-%ковариационная матрица шума наблюдения
-Rn =  0.01;
+for k = 1 : K
+    kk(k) = k;
+end
 
- %B = zeros(1, K); %Фон
+sigmaPsi=0.01; %реальные погрешности (ошибка модели)
+sigmaEtaModel=0.1; %ошибка измерений прибора
+%sigmaEtaFilter = 0.1; - не используется
+
+%ковариационная матрица шума системы (параметров)
+%Rpr = [0.073 0 0 0; 0 0.21 0 0; 0 0 0.006 0; 0 0 0 0.1]; %подобрать дисперсию для последнего пар-ра
+%Rpr = [3 0 0 0; 0 4 0 0; 0 0 0.0001 0; 0 0 0 0.00001]; %это оценки как для реального сигнала
+Rpr = [0.1 0 0 0; 0 8 0 0; 0 0 0.015 0; 0 0 0 0.05];
+
+%ковариационная матрица шума наблюдения
+Rn = 0.8; %попробовать изменить (чтобы = sigma eta model)
+
+ B = zeros(1, K); %Фон
  A = zeros(1, K); %Амплитуда
  y = zeros(1, K);
  z = zeros(1, K);
@@ -29,12 +37,14 @@ Rn =  0.01;
  devT = zeros(1,50);
 
 
-for i = 1:50 % 50 экспериментов (т.к. сигнал стохастический)
+for i = 1:5 % 50 экспериментов (т.к. сигнал стохастический)
     
     for x = 1:K
-        A(x) = exp((-(x-500)^2)/50000);
-        y(x) = A(x)*cos(2*3.14*(1/T)*x)+normrnd(0,sigmaPsi); %T - кол-во отчётов на период
+        B(x) = 0;
+        A(x) = exp((-(x-(K/2))^2)/(K/1.5)); %тут вроде ничего не надо менять
+        y(x) = B(x) + A(x)*cos(2*3.14*(1/T)*x)+normrnd(0,sigmaPsi); % то что перед А - медленно меняющийся фон. Можно менять коэф перед х, начиная где-то от 0.01
         z(x)=y(x)+normrnd(0,sigmaEtaModel); 
+ %      Thetta(1)+Thetta(2)*cos(2*pi*k*(1/Thetta(4))+Thetta(3))
     end
    
     deviationA = zeros(1,K);
@@ -58,13 +68,13 @@ for i = 1:50 % 50 экспериментов (т.к. сигнал стохастический)
     B_est(1) = 0;
     A_est(1) = 0;
     ph_init_est(1) = 0;
-    T_est(1) = 3;
-    Thetta = [B_est(1); A_est(1); ph_init_est(1); T_est(1) ]; %начальное значение вектора параметров
+    T_est(1) = T + 0.1;
+    Thetta = [B_est(1); A_est(1); ph_init_est(1); T_est(1)]; %начальное значение вектора параметров
 
     for k = 1 : K
-        H = [1; cos(2*pi*k*(1/Thetta(4))+Thetta(3)); -Thetta(2)*sin(2*pi*k*(1/Thetta(4))+Thetta(3)); (2*pi*Thetta(2)*k*sin(2*pi*k*(Thetta(3) + 1/Thetta(4)))) / Thetta(4)^2]'; %вектор из производных по параметрам (см. модель в стр. 16)
+        H = [1; cos(2*pi*k*(1/Thetta(4))+Thetta(3)); -sin(2*pi*k*(1/Thetta(4))+Thetta(3)); (2*pi*Thetta(2)*k*(-sin(Thetta(3) + (2*pi*k)/Thetta(4)))) / (Thetta(4)^2)]'; %вектор из производных по параметрам (см. модель в стр. 16)
         P = Rpr*H'*inv(H*Rpr*H'+Rn);                                                        
-        Thetta = Thetta + P * (z(k) - (Thetta(1)+Thetta(2)*cos(2*pi*k*(1/Thetta(4))+Thetta(3))) ); %d/d(thetta4)) (Thetta(1)+Thetta(2)*cos(2*pi*k*(1/Thetta(4))+Thetta(3))
+        Thetta = Thetta + P * (z(k) - (Thetta(1)+Thetta(2)*cos(2*pi*k*(1/Thetta(4))+Thetta(3))) ); %это модель
         Thetta(2) = abs(Thetta(2));
         Thetta(4) = abs(Thetta(4)); % эвристика: кол-во отсчетов не может быть отрицательным
         B_est(k) = Thetta(1);
@@ -77,7 +87,7 @@ for i = 1:50 % 50 экспериментов (т.к. сигнал стохастический)
     B_est_sm = smooth(B_est,25);
 
     %signal_sub3 = signal_sub2 - B_est;
-    signal_sub3 = z - B_est;
+    %signal_sub3 = z - B_est;
 
     for j = 1:K
       deviationA(j) = ((A_est_sm(j) - A(j))^2);
@@ -107,10 +117,22 @@ for i = 1:50 % 50 экспериментов (т.к. сигнал стохастический)
     dev_sumT = sum(deviationT)/K;
     devT(i) = dev_sumT;
     
-   
 end;
 
 devA_t = devA';
 devB_t = devB';
 devPhi_t = devPhi';
 devT_t = devT';
+
+%figure(1);
+%set(gcf,'color','w');
+% plot(kk,z), xlabel('Номер отсчёта сигнала'), ylabel('Значения сигнала, отн.ед.');
+figure (2);
+%plot(kk, B_est);
+set(gcf,'color','w');
+subplot(4,1,1),plot(kk,B_est_sm,kk,z ),title('Фон'), ylabel('Значения сигнала');
+subplot(4,1,2),plot(kk,A_est_sm, kk,z),title('Амплитуда');
+subplot(4,1,3),plot(kk,ph_init_est),title('Начальная фаза'), ylabel('Радианы');
+subplot(4,1,4),plot(kk,T_est),title('Период');
+
+
