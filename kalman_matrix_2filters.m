@@ -45,9 +45,13 @@ kk = zeros(1, rows_short*cols_short); %номера отсчетов дл€ визуализации графиков
 s = zeros(rows_short,cols_short); %сигнал
 s_f = zeros(rows_short,cols_short);
 
-Thetta = zeros(1, 3, rows_short, cols_short); %нужно будет здесь помен€ть на 4
+Thetta = zeros(1, 3, rows_short, cols_short);
 H = zeros(1, 3, rows_short, cols_short);
 P = zeros(1, 3, rows_short, cols_short);
+
+Thetta2 = zeros(1, 3, rows_short, cols_short);
+H2 = zeros(1, 3, rows_short, cols_short);
+P2 = zeros(1, 3, rows_short, cols_short);
 
 for k = 1 : K
     kk(k) = k;
@@ -71,8 +75,9 @@ end;
 output_imgs = zeros(500,cols_short,rows_short);
 
 %ковариационна€ матрица шума системы (параметров)
-%Rpr = [0.073 0 0; 0 0.021 0; 0 0 0.006];
-Rpr = [0.07 0 0; 0 0.5 0; 0 0 0.00005]; % оценки получше
+
+Rpr1 = [0.04 0 0; 0 0 0; 0 0 0]; 
+Rpr2 = [0 0 0; 0 0.5 0; 0 0 0.00005];
 %ковариационна€ матрица шума наблюдени€
 Rn =  0.01;
 
@@ -84,36 +89,38 @@ for k = 1 : 500 %по кол-ву изображений k=500
     img_name = sprintf('%s\\%s%d%s',folder,file_mask,k,file_format);
     img = rgb2gray(imread(img_name));
     yy = 1; 
+    
+    %здесь читаем сигнал и оцениваем только фон
     for y = step_pixels+1:step_pixels*2+1:rows-step_pixels-1
         xx = 1;
         for x = step_pixels+1:step_pixels*2+1:columns-step_pixels-1
-        s(yy,xx) = mean(mean(img(x-step_pixels:x+step_pixels,y-step_pixels:y+step_pixels))); % надо пон€ть, как здесь сделать усреднение, чтобы начать с 1;1
-        waitbar((y*columns + x)/(rows*columns),f,sprintf('%d from %d',(y*columns + x),rows*columns)); 
-        %фильтраци€
-        H(:,:,yy,xx) = [1; cos(2*pi*(y*columns + x)*0.33+Thetta(:,3,yy,xx)); -sin(2*pi*(y*columns + x)*0.33+Thetta(:,3,yy,xx))];
-        P(:,:,yy,xx) = Rpr*H(:,:,yy,xx)'*inv(H(:,:,yy,xx)*Rpr*H(:,:,yy,xx)'+Rn);
-        Thetta(:,:,yy,xx) = Thetta(:,:,yy,xx) + P(:,:,yy,xx) * (s(yy,xx) - (Thetta(:,1,yy,xx)+Thetta(:,2,yy,xx)*cos(2*pi*x*0.33+Thetta(:,3,yy,xx))));
-        Thetta(:,2,yy,xx) = abs(Thetta(:,2,yy,xx));
-        B_est(yy,xx) = Thetta(:,1,yy,xx);
-        A_est(yy,xx) = Thetta(:,2,yy,xx);
-        ph_init_est(yy,xx) = Thetta(:,3,yy,xx);
-        
-        %лучше собрать все Ѕ-сканы в массивы по ходу движени€ по кадрам и в
-        %конце в цикле раскидать их в выходные .png
-        xx = xx+1;
+            s(yy,xx) = mean(mean(img(x-step_pixels:x+step_pixels,y-step_pixels:y+step_pixels))); % надо пон€ть, как здесь сделать усреднение, чтобы начать с 1;1
+            waitbar((y*columns + x)/(rows*columns),f,sprintf('%d from %d',(y*columns + x),rows*columns)); 
+            
+            %первый фильтр
+            H(:,:,yy,xx) = [1; cos(2*pi*(y*columns + x)*0.33+Thetta(:,3,yy,xx)); -sin(2*pi*(y*columns + x)*0.33+Thetta(:,3,yy,xx))];
+            P(:,:,yy,xx) = Rpr1*H(:,:,yy,xx)'*inv(H(:,:,yy,xx)*Rpr2*H(:,:,yy,xx)'+Rn);
+            Thetta(:,:,yy,xx) = Thetta(:,:,yy,xx) + P(:,:,yy,xx) * (s(yy,xx) - (Thetta(:,1,yy,xx)+Thetta(:,2,yy,xx)*cos(2*pi*x*0.33+Thetta(:,3,yy,xx))));
+            B_est(yy,xx) = Thetta(:,1,yy,xx); 
+            
+            s_f(yy,xx) = s(yy,xx) - B_est(yy,xx);
+            
+            % второй фильтр
+            H2(:,:,yy,xx) = [1; cos(2*pi*(y*columns + x)*0.33+Thetta2(:,3,yy,xx)); -sin(2*pi*(y*columns + x)*0.33+Thetta2(:,3,yy,xx))];
+            P2(:,:,yy,xx) = Rpr2*H2(:,:,yy,xx)'*inv(H2(:,:,yy,xx)*Rpr2*H2(:,:,yy,xx)'+Rn);
+            Thetta2(:,:,yy,xx) = Thetta2(:,:,yy,xx) + P2(:,:,yy,xx) * (s_f(yy,xx) - (Thetta2(:,1,yy,xx)+Thetta2(:,2,yy,xx)*cos(2*pi*x*0.33+Thetta2(:,3,yy,xx))));
+            
+            Thetta2(:,2,yy,xx) = abs(Thetta2(:,2,yy,xx));
+            A_est(yy,xx) = Thetta2(:,2,yy,xx);
+            ph_init_est(yy,xx) = Thetta2(:,3,yy,xx);
+            xx = xx+1;
         end
        yy = yy+1;
     end
     
-    output_imgs(k,:,:) = A_est; %пон€ть, какой должен быть индекс (вроде всЄ ок)
-    
+    output_imgs(k,:,:) = A_est;
     disp(k);
 end
-
-
-%вычли оценку фона из сигнала
-
-s_2 = s - B_est;
 
 %нормировка b-сканов
 for i = 1:rows_short %проход по всем б-сканам

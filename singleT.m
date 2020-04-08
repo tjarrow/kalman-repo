@@ -83,21 +83,21 @@ for i = 1:5 % 50 экспериментов (т.к. сигнал стохастический)
         T_est(k) = Thetta(4);
        % ph_init_est(k) = mod( ph_init_est(k), 2*3.14); 
     end
-    A_est_sm = smooth(A_est,15);
-    B_est_sm = smooth(B_est,25);
+    %A_est_sm = smooth(A_est,15);
+    %B_est_sm = smooth(B_est,25);
 
     %signal_sub3 = signal_sub2 - B_est;
     %signal_sub3 = z - B_est;
 
     for j = 1:K
-      deviationA(j) = ((A_est_sm(j) - A(j))^2);
+      deviationA(j) = ((A_est(j) - A(j))^2);
     end
 
     dev_sumA = sum(deviationA)/K;
     devA(i) = dev_sumA;
 
     for j = 1:K
-      deviationB(j) = (B_est_sm(j)^2);
+      deviationB(j) = (B_est(j)^2);
     end
 
     dev_sumB = sum(deviationB)/K;
@@ -130,8 +130,8 @@ devT_t = devT';
 figure (2);
 %plot(kk, B_est);
 set(gcf,'color','w');
-subplot(4,1,1),plot(kk,B_est_sm,kk,z ),title('Фон'), ylabel('Значения сигнала');
-subplot(4,1,2),plot(kk,A_est_sm, kk,z),title('Амплитуда');
+subplot(4,1,1),plot(kk,B_est,kk,z ),title('Фон'), ylabel('Значения сигнала, отн.ед.');
+subplot(4,1,2),plot(kk,A_est, kk,z),title('Амплитуда');
 subplot(4,1,3),plot(kk,ph_init_est),title('Начальная фаза'), ylabel('Радианы');
 subplot(4,1,4),plot(kk,T_est),title('Период');
 
